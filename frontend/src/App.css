@@ -1,0 +1,706 @@
+:root {
+  --bg: #0b1d2a;
+  --bg-2: #112c41;
+  --sea: #1d4a6b;
+  --sea-2: #245a80;
+  --grid: #0a1822;
+  --ship: #4a4a4a;
+  --hit: #d9534f;
+  --miss: #cfd8dc;
+  --sunk: #8b0000;
+  --accent: #ffd166;
+  --text: #e8eef3;
+  --muted: #9bb0bf;
+  --valid: rgba(80, 200, 120, 0.55);
+  --invalid: rgba(220, 80, 80, 0.55);
+
+  /* Per-ship hull colors */
+  --ship-aircraft_carrier: #6e7a86;
+  --ship-battleship: #4a4a4a;
+  --ship-cruiser: #586d7d;
+  --ship-frigate: #7d8a99;
+  --ship-submarine: #3d525e;
+
+  --action-armed-bg: rgba(255, 209, 102, 0.18);
+  --action-armed-edge: rgba(255, 209, 102, 0.7);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body,
+html,
+#root {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(180deg, #07131c 0%, #0b1d2a 100%);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-areas:
+    "header header"
+    "boards sidebar";
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+}
+
+@media (max-width: 1100px) {
+  .app {
+    grid-template-areas:
+      "header"
+      "boards"
+      "sidebar";
+    grid-template-columns: 1fr;
+  }
+}
+
+header {
+  grid-area: header;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 16px;
+}
+header h1 {
+  margin: 0;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.status {
+  color: var(--muted);
+  font-size: 15px;
+}
+.status .winner {
+  color: var(--accent);
+  font-weight: 700;
+}
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+button {
+  background: var(--bg-2);
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s, transform 0.05s;
+}
+button:hover:not(:disabled) {
+  background: #173a55;
+}
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+button.primary {
+  background: var(--accent);
+  color: #0b1d2a;
+  font-weight: 700;
+  border-color: rgba(0, 0, 0, 0.2);
+}
+button.primary:hover:not(:disabled) {
+  background: #ffdd84;
+}
+button.primary.glow {
+  animation: btn-glow 1.6s ease-in-out infinite;
+}
+@keyframes btn-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 209, 102, 0.0);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 209, 102, 0.35);
+  }
+}
+
+kbd {
+  background: #1a3147;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+/* --- Boards ----------------------------------------------------------- */
+
+.boards {
+  grid-area: boards;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 24px;
+}
+
+.board-wrap h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Stage = positioned wrapper around the board so the ship menu can be
+   absolutely placed relative to the board itself. */
+.board-stage {
+  position: relative;
+}
+
+.board {
+  display: grid;
+  gap: 2px;
+  background: var(--grid);
+  padding: 6px;
+  border-radius: 8px;
+  user-select: none;
+}
+.board.disabled {
+  opacity: 0.7;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--muted);
+  height: 22px;
+  font-weight: 600;
+}
+.corner {
+  width: 22px;
+  height: 22px;
+}
+
+.cell {
+  aspect-ratio: 1 / 1;
+  background: var(--sea);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  padding: 0;
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.cell:hover:not(:disabled) {
+  background: var(--sea-2);
+}
+.cell.empty {
+  background: var(--sea);
+}
+.cell.ship {
+  background: var(--ship);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.cell.ship.kind-aircraft_carrier {
+  background: var(--ship-aircraft_carrier);
+}
+.cell.ship.kind-battleship {
+  background: var(--ship-battleship);
+}
+.cell.ship.kind-cruiser {
+  background: var(--ship-cruiser);
+}
+.cell.ship.kind-frigate {
+  background: var(--ship-frigate);
+}
+.cell.ship.kind-submarine {
+  background: var(--ship-submarine);
+}
+.cell.hit {
+  background: var(--hit);
+}
+.cell.sunk {
+  background: var(--sunk);
+}
+.cell.miss {
+  background: var(--miss);
+  color: #2c3e50;
+}
+
+.cell.highlight-valid {
+  outline: 2px solid var(--valid);
+  outline-offset: -2px;
+}
+.cell.highlight-invalid {
+  outline: 2px solid var(--invalid);
+  outline-offset: -2px;
+}
+
+.cell.selected {
+  box-shadow: 0 0 0 2px var(--action-armed-edge) inset;
+  animation: cell-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cell-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px var(--action-armed-edge) inset;
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(255, 209, 102, 1) inset;
+  }
+}
+/* Soft outline when the user is just hovering a ship (not yet selected). */
+.cell.hovered {
+  box-shadow: 0 0 0 2px rgba(255, 209, 102, 0.4) inset;
+}
+
+/* --- Floating ship action menu --------------------------------------- */
+
+.ship-menu {
+  position: absolute;
+  width: 200px;
+  background: var(--bg-2);
+  border: 1px solid var(--action-armed-edge);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  padding: 10px 12px;
+  z-index: 20;
+  pointer-events: auto;
+  animation: menu-in 0.15s ease-out;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ship-menu::before {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-2);
+  border-left: 1px solid var(--action-armed-edge);
+  border-bottom: 1px solid var(--action-armed-edge);
+  transform: rotate(45deg);
+}
+.ship-menu.placement-right::before {
+  top: 16px;
+  left: -6px;
+}
+.ship-menu.placement-left::before {
+  top: 16px;
+  right: -6px;
+  transform: rotate(-135deg);
+}
+.ship-menu.placement-below::before {
+  top: -6px;
+  left: 24px;
+  transform: rotate(135deg);
+}
+
+.ship-menu-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ship-menu-head .muted {
+  margin-left: auto;
+}
+
+.ship-menu-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ship-menu-action {
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  padding: 7px 10px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ship-menu-action .badge {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.ship-menu-action.armed {
+  background: var(--accent);
+  color: #0b1d2a;
+  font-weight: 700;
+  border-color: rgba(0, 0, 0, 0.25);
+}
+.ship-menu-action.armed .badge {
+  background: rgba(0, 0, 0, 0.15);
+  color: #0b1d2a;
+}
+
+.ship-menu-hint {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  padding-top: 4px;
+}
+
+.compass-inline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-top: 2px;
+}
+.compass-inline .compass-btn {
+  width: auto;
+  padding: 6px 0;
+  font-weight: 700;
+}
+
+.muted.small {
+  font-size: 12px;
+}
+
+/* --- Sidebar --------------------------------------------------------- */
+
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fleet-panel,
+.log,
+.action-bar,
+.placement-panel {
+  background: var(--bg-2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.ship-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ship-row {
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-left: 4px solid var(--muted);
+  cursor: default;
+  transition: background 0.12s, border-color 0.12s;
+}
+.ship-row.selected {
+  background: var(--action-armed-bg);
+  border-left-color: var(--accent);
+}
+.ship-row.sunk {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.ship-row.kind-aircraft_carrier {
+  border-left-color: var(--ship-aircraft_carrier);
+}
+.ship-row.kind-battleship {
+  border-left-color: var(--ship-battleship);
+}
+.ship-row.kind-cruiser {
+  border-left-color: var(--ship-cruiser);
+}
+.ship-row.kind-frigate {
+  border-left-color: var(--ship-frigate);
+}
+.ship-row.kind-submarine {
+  border-left-color: var(--ship-submarine);
+}
+
+.ship-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.ship-name {
+  flex: 1;
+  font-weight: 600;
+}
+.ship-length {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.ship-marker {
+  display: inline-block;
+  width: 14px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--ship);
+}
+.ship-marker.kind-aircraft_carrier {
+  background: var(--ship-aircraft_carrier);
+  width: 22px;
+}
+.ship-marker.kind-battleship {
+  background: var(--ship-battleship);
+  width: 18px;
+}
+.ship-marker.kind-cruiser {
+  background: var(--ship-cruiser);
+  width: 14px;
+}
+.ship-marker.kind-frigate {
+  background: var(--ship-frigate);
+  width: 12px;
+}
+.ship-marker.kind-submarine {
+  background: var(--ship-submarine);
+  width: 8px;
+}
+
+.damage-bar {
+  margin-top: 6px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.damage-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--hit), var(--sunk));
+  transition: width 0.25s ease;
+}
+
+.ship-actions-summary {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.action-pill {
+  display: inline-block;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+.action-pill.spent,
+.action-pill.sunk {
+  color: var(--muted);
+  background: transparent;
+}
+
+/* --- Action bar ------------------------------------------------------ */
+
+.action-bar {
+  border-color: var(--action-armed-edge);
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.06), var(--bg-2));
+}
+.action-bar-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+.cancel-btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.action-bar-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.action-btn {
+  font-size: 13px;
+  padding: 6px 10px;
+}
+.action-btn.armed {
+  background: var(--accent);
+  color: #0b1d2a;
+  font-weight: 700;
+  border-color: rgba(0, 0, 0, 0.25);
+}
+.action-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.compass {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 6px;
+  margin-top: 8px;
+}
+.compass-btn {
+  font-weight: 700;
+  width: 40px;
+}
+
+/* --- Placement panel ------------------------------------------------- */
+
+.placement-panel p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+.placement-panel .kind-aircraft_carrier {
+  color: #c7d6e3;
+}
+.placement-panel .kind-battleship {
+  color: #c0c0c0;
+}
+.placement-panel .kind-cruiser {
+  color: #b3c2cf;
+}
+.placement-panel .kind-frigate {
+  color: #c9d2da;
+}
+.placement-panel .kind-submarine {
+  color: #aab9c2;
+}
+.placement-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.placement-panel .hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* --- Battle log ------------------------------------------------------ */
+
+.log {
+  max-height: 280px;
+  overflow: auto;
+}
+.log ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.log li {
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+}
+.log li.you {
+  color: #9be7c4;
+}
+.log li.enemy {
+  color: #f5b3b0;
+}
+.log li.neutral {
+  color: var(--muted);
+}
+.log li.muted {
+  color: var(--muted);
+  font-style: italic;
+  border: none;
+}
+
+/* --- Toasts ---------------------------------------------------------- */
+
+.toast-container {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+  pointer-events: none;
+}
+.toast {
+  min-width: 280px;
+  max-width: 480px;
+  padding: 14px 22px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  color: white;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+  animation: toast-in 0.25s ease-out, toast-out 0.4s ease-in 2.8s forwards;
+  letter-spacing: 0.02em;
+}
+.toast.good {
+  background: linear-gradient(135deg, #1f8a4c 0%, #2fbb6a 100%);
+}
+.toast.bad {
+  background: linear-gradient(135deg, #a31d1d 0%, #d9534f 100%);
+}
+.toast.info {
+  background: linear-gradient(135deg, #1b3a55 0%, #245a80 100%);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+}
