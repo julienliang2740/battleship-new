@@ -1,9 +1,14 @@
 # 02 - Game Rules
 
+These rules are implemented independently by both `backend/` and `backend-rs/`.
+The selected backend is authoritative during play, and both implementations
+must produce the same observable result for the same seed and action sequence.
+
 ## Board
 
-- Default grid: **12 x 12** (configurable via `config.ts:BOARD_SIZE`). Larger than
-  the classic 10 x 10 to comfortably fit the new, larger Aircraft Carrier.
+- Default grid: **12 x 12** (configured in `backend/src/config.ts` and
+  `backend-rs/src/config.rs`). Larger than the classic 10 x 10 to comfortably
+  fit the new, larger Aircraft Carrier.
 - Cells are addressed by `(row, col)` with `row` in `[0, size)` and `col` in
   `[0, size)`. On the wire and in code we also use a flat index
   `i = row * size + col`.
@@ -41,7 +46,7 @@ placement -> playing -> gameover
 - The human places ships one at a time in the order: Aircraft Carrier, Battleship,
   Cruiser, Frigate, Submarine. The human can press **R** to rotate or click a
   "Random" button to auto-place.
-- The AI places its ships server-side as soon as the game is created.
+- The selected backend places the AI's ships as soon as the game is created.
 - Once the human has placed the final ship (Submarine), the phase transitions to
   `playing` and it becomes the human's turn.
 
@@ -57,7 +62,8 @@ A **turn** is structured as:
      in bounds and unoccupied).
 3. **Targeting**: the player nominates the action's target(s) on the appropriate
    board (enemy board for attacks; own board for `MOVE`/`ROTATE`).
-4. **Resolution**: backend executes the action atomically and returns events.
+4. **Resolution**: the selected backend executes the action atomically and
+   returns events.
 5. The turn ends when:
    - the player has used every action of every ship at least once **and** they
      explicitly end the turn (recommended UX), OR

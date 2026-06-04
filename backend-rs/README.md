@@ -1,9 +1,10 @@
 # Battleship Backend (Rust)
 
-Drop-in replacement for `../backend` (the original Node/Express/TypeScript
-implementation). Exposes exactly the same HTTP API on the same default port
-(`4000`), and produces byte-identical JSON responses for the flows the
-frontend uses.
+Rust + Axum implementation of the Battleship REST API. It is a drop-in
+alternative to the peer Node.js + Express + TypeScript implementation in
+`../backend`. Both expose exactly the same HTTP API on the same default port
+(`4000`) and produce byte-identical JSON responses for the flows the frontend
+uses.
 
 ## Run
 
@@ -12,8 +13,8 @@ cargo run --release       # listens on http://localhost:4000
 PORT=4001 cargo run --release   # custom port
 ```
 
-Stop the original TS backend first (or use a different `PORT`) - they cannot
-both bind to `4000`.
+Run either this backend or the TypeScript backend, not both on port `4000`.
+They use independent in-memory stores and do not share games.
 
 ## Architecture
 
@@ -46,3 +47,10 @@ The Rust port reproduces the TS mulberry32 PRNG bit-for-bit, so the same
 the same AI decisions. JSON fields, enum spellings, event order, HTTP status
 codes, and error message strings match the TS backend exactly (verified via
 side-by-side diff over a 20-turn game).
+
+The canonical TypeScript wire definitions live in `../shared`; their Serde
+mirror lives in `src/shared/mod.rs`. Any API, game-rule, DTO, AI, or error
+behavior change must be made in both backends.
+
+See `../design_docs/04-api-contracts.md` for the shared API contract and
+`../design_docs/05-backend-modules.md` for both backend layouts.

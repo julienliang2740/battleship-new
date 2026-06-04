@@ -2,11 +2,15 @@
 
 This doc defines every entity the system uses, in three layers:
 
-1. **Domain types** - live on the backend, can be mutable, hold private state.
-2. **DTOs** - serializable views of domain entities; defined in `shared/`.
+1. **Domain types** - implemented independently in each backend, can be mutable,
+   and hold private state.
+2. **DTOs** - serializable views of domain entities; canonically defined in
+   `shared/` and mirrored with Serde types in `backend-rs/src/shared/mod.rs`.
 3. **UI state** - browser-only, owned by the frontend reducer.
 
 DTOs are the *only* shapes that cross the wire. Domain types and UI state never do.
+The TypeScript interfaces below define the wire contract; the Rust mirror must
+serialize to and deserialize from exactly the same JSON shapes.
 
 ## Coordinate primitives (`shared/coords.ts`)
 
@@ -24,8 +28,8 @@ export interface Coord {
 ```
 
 The flat cell index is `row * size + col`. Helpers `idx` / `rowCol` exist in
-`backend/src/core/coords.ts` (server) and `frontend/src/state/types.ts` mirrors
-them where convenient.
+`backend/src/core/coords.ts` and `backend-rs/src/core/coords.rs`; the frontend
+has equivalent helpers in `frontend/src/state/types.ts` where convenient.
 
 ## Ship (`shared/ships.ts`)
 
@@ -81,7 +85,7 @@ export interface ShipDTO {
 }
 ```
 
-### Per-turn quotas (backend constants)
+### Per-turn quotas (both backends)
 
 | ShipKind            | SINGLE_HIT | AREA_HIT_2X2 | MOVE_1 | ROTATE_90 |
 | ------------------- | ---------- | ------------ | ------ | --------- |
@@ -95,7 +99,8 @@ export interface ShipDTO {
 `MOVE_1`, and `ROTATE_90` - choosing one consumes the slot for the others. This
 is enforced by `Submarine.actionsRemaining()`: it returns `{ SINGLE_HIT: 1,
 MOVE_1: 1, ROTATE_90: 1 }` at start of turn, but after the first use it returns
-`{}`. See `models/Submarine.ts`.
+`{}`. See `backend/src/models/Submarine.ts` and
+`backend-rs/src/models/ship.rs`.
 
 ## Board (`shared/board.ts`)
 

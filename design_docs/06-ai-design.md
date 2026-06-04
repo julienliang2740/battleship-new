@@ -9,9 +9,11 @@ The AI plays the role of the second player. It must:
    `humanBoard.ships[*].positions` directly. It uses
    `humanBoard.toEnemyView()` plus its own memory of past shots.
 
-The AI lives in `backend/src/ai/`.
+The AI is implemented in both `backend/src/ai/` and `backend-rs/src/ai/`.
+The TypeScript signatures below describe the shared behavior; the Rust modules
+must make the same seeded decisions and emit the same events.
 
-## Placement (`ai/placement.ts`)
+## Placement (`backend/src/ai/placement.ts`, `backend-rs/src/ai/placement.rs`)
 
 ```ts
 export function autoPlaceFleet(board: Board, rng: Rng): void
@@ -28,7 +30,7 @@ Algorithm: rejection sampling per ship in fleet order. For each ship:
 This mirrors the original prototype's `randomPlaceAllShips`. It is good enough
 because the fleet occupies only 23 of 144 cells (16%).
 
-## Targeting model (`ai/targeting.ts`)
+## Targeting model (`backend/src/ai/targeting.ts`, `backend-rs/src/ai/targeting.rs`)
 
 The AI maintains a `Targeter` object that derives strictly from the enemy view
 DTO plus a small memory of unresolved hits.
@@ -71,7 +73,7 @@ penalized by cells that are already attacked. We never use `AREA_HIT_2X2`
 unless there are at least 2 unattacked cells in the chosen 2x2 (it's a waste
 of the Battleship's only action otherwise).
 
-## Turn policy (`ai/policy.ts`)
+## Turn policy (`backend/src/ai/policy.ts`, `backend-rs/src/ai/policy.rs`)
 
 The AI's turn is a sequence of *micro-decisions*, one per available action,
 in the following priority order:
@@ -93,10 +95,10 @@ in the following priority order:
    - `MOVE_1` away from the most-attacked side of the board.
    - Falls back to `SINGLE_HIT` if neither evasive option is legal.
 
-After all actions are taken, the AI ends its turn (the backend's
-`GameService.applyAction` handles the implicit end-turn after AI play).
+After all actions are taken, the AI ends its turn. The selected backend's
+service and game logic handle the transition back to the human.
 
-## `AIOpponent` (`ai/AIOpponent.ts`)
+## `AIOpponent` (`backend/src/ai/AIOpponent.ts`, `backend-rs/src/ai/opponent.rs`)
 
 ```ts
 class AIOpponent {
@@ -143,3 +145,6 @@ on every step so the AI keeps capitalizing on hits as they happen.
 The AI is *forced* to play with the same information any opponent has. This
 keeps the game fair and means we can later use the same `AIOpponent` to drive
 a hint feature for the human player without leaking information.
+
+It also provides a parity boundary: for the same seed and public game history,
+the TypeScript and Rust AIs must choose the same next action.

@@ -3,32 +3,48 @@
 A redesign of the classic Battleship game where each ship is an individual tactical unit
 with its own attack profile and abilities, played against an AI opponent.
 
-This repository is split into three TypeScript projects:
+The repository contains one frontend and two interchangeable backend
+implementations:
 
-| Folder      | Purpose                                                       |
-| ----------- | ------------------------------------------------------------- |
-| `shared/`   | DTOs and shared types used by both frontend and backend.      |
-| `backend/`  | Node.js + Express REST API. Owns all game state and AI logic. |
-| `frontend/` | React + Vite UI. Pure presentation; calls the backend API.    |
-| `design_docs/` | Exhaustive design documentation. Read this first.          |
+| Folder         | Purpose                                                                  |
+| -------------- | ------------------------------------------------------------------------ |
+| `shared/`      | Canonical TypeScript DTOs and wire types used by the frontend and TS backend. |
+| `backend/`     | Node.js + Express + TypeScript REST API.                                 |
+| `backend-rs/`  | Rust + Axum REST API with the same HTTP behavior and JSON wire contract.  |
+| `frontend/`    | React + Vite UI. Pure presentation; works with either backend.             |
+| `design_docs/` | Exhaustive design documentation. Read this first.                         |
+
+Both backends own all game state and AI logic. They expose the same endpoints
+on port `4000` by default, so run exactly one of them at a time.
 
 ## Quick start
 
-In two terminals:
+Choose one backend:
 
 ```bash
-# Terminal 1 - backend on http://localhost:4000
+# Option A - TypeScript/Express backend on http://localhost:4000
 cd backend
 npm install
 npm run dev
+```
 
-# Terminal 2 - frontend on http://localhost:5173
+```bash
+# Option B - Rust/Axum backend on http://localhost:4000
+cd backend-rs
+cargo run --release
+```
+
+Then run the frontend in another terminal:
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-The frontend dev server proxies `/api/*` to the backend (see `frontend/vite.config.ts`).
+The frontend dev server proxies `/api/*` to whichever backend is listening on
+`http://localhost:4000` (see `frontend/vite.config.ts`). Each backend has its
+own in-memory game store; switching implementations starts with an empty store.
 
 ## Documentation
 

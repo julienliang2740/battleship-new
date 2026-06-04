@@ -1,5 +1,8 @@
 # 07 - Frontend Architecture
 
+The frontend is backend-agnostic. It depends only on the shared HTTP/JSON
+contract and works unchanged with either `backend/` or `backend-rs/`.
+
 ## Component tree
 
 ```
@@ -222,10 +225,13 @@ talk to `api/client.ts` directly.
 Manages the toast queue; called from inside `useGame` whenever an `events`
 stream arrives.
 
-## Communication with backend
+## Communication with either backend
 
 - One `gameId` per session, stored in localStorage so that a refresh restores
   the game. On mount, the App calls `GET /api/games/:id`. If 404, it calls
   `POST /api/games` to create a new one.
 - After every mutation the API returns the full `GameStateDTO`; the reducer
   replaces its snapshot. There is no client-side derivation of game state.
+- Vite proxies `/api/*` to `http://localhost:4000`; whichever backend is
+  listening there serves the frontend. No frontend code or runtime flag changes
+  when switching implementations.

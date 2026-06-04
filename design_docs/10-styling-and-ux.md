@@ -1,5 +1,9 @@
 # 10 - Styling and UX
 
+Styling and interaction behavior are frontend-only and do not vary by backend.
+The TypeScript and Rust backends expose the same snapshots and event cadence,
+so switching implementations must not change the rendered UX.
+
 ## Visual identity
 
 We preserve the dark-naval palette of the original prototype. New tokens

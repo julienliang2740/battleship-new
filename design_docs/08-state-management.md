@@ -2,12 +2,14 @@
 
 The frontend uses React Context plus `useReducer`. There is exactly **one**
 reducer and one context; nothing else owns mutable game-related state.
+This state layer treats both backend implementations identically because they
+share the same DTOs, events, and error contract.
 
 ## Store shape
 
 ```ts
 interface Store {
-  // Server snapshot - read-only on the client.
+  // Snapshot from the selected backend - read-only on the client.
   state: GameStateDTO | null;
   // Local UI state.
   ui: UIState;
@@ -145,7 +147,7 @@ type Action =
 
 A dedicated `useEffect` in `GameContext` automatically calls `aiStep()` on a
 700ms cadence whenever `state.activePlayer === "ai"`. The effect re-arms after
-every snapshot (the log length is a tripwire). When the server reports
+every snapshot (the log length is a tripwire). When the selected backend reports
 `activePlayer === "human"` (or the game is over), the effect short-circuits
 and no further polling happens.
 
@@ -159,6 +161,10 @@ successful `POST /api/games`. On mount, the App reads it and:
 
 1. If absent: creates a fresh game.
 2. If present: tries `GET /api/games/:id`. On 404, falls back to (1).
+
+The two backends have independent in-memory stores. After switching which
+backend is running, the stored `gameId` will normally return 404 and this
+fallback creates a fresh game automatically.
 
 ## Event-to-toast mapping
 

@@ -1,8 +1,16 @@
 # 04 - API Contracts
 
-All endpoints live under the `/api` prefix and exchange JSON. The backend
-listens on port `4000` by default (overridable via `PORT`). The frontend dev
-server proxies `/api/*` to the backend.
+All game endpoints live under the `/api` prefix and exchange JSON. Both
+`backend/` (TypeScript/Express) and `backend-rs/` (Rust/Axum) implement this
+contract and listen on port `4000` by default (overridable via `PORT`). Run one
+backend at a time; the frontend dev server proxies `/api/*` to whichever one is
+listening on that port.
+
+The contract includes JSON field names and omission rules, event order, HTTP
+status codes, and error messages. A contract change is complete only when both
+backend implementations exhibit the same behavior. Both also expose
+`GET /health` outside the `/api` prefix, returning
+`{ "ok": true, "games": <in-memory game count> }`.
 
 A game is uniquely identified by its `gameId` (UUID v4). All endpoints operate
 from the **human player's perspective**: `you` is always the human, `enemy` is
@@ -34,8 +42,8 @@ Codes:
 
 ### `POST /api/games`
 
-Create a new game. The server auto-places the AI's fleet and waits for the
-human to place theirs.
+Create a new game. The selected backend auto-places the AI's fleet and waits
+for the human to place theirs.
 
 Request body:
 
@@ -207,7 +215,7 @@ on their board.
 Errors: `WRONG_PHASE`, `NOT_YOUR_TURN`, `INVALID_ACTION`, `NO_QUOTA`,
 `INVALID_TARGET`, `GAME_OVER`.
 
-### Action validation rules (server-side)
+### Action validation rules (both backends)
 
 For all attack actions:
 - `shipId` must belong to the human, must reference an alive ship, and the

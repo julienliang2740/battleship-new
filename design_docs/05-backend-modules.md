@@ -1,6 +1,17 @@
 # 05 - Backend Modules
 
-## File map
+The repository has two peer backend implementations:
+
+- `backend/`: TypeScript + Express, consuming DTOs directly from `shared/`.
+- `backend-rs/`: Rust + Axum, mirroring the DTOs with Serde types.
+
+They preserve the same route -> controller -> service -> core/models/ai
+boundaries and must implement the shared API and game rules identically. The
+TypeScript-shaped snippets below are concise descriptions of the domain
+contracts; the Rust implementation uses the equivalent structs, enums, traits,
+and methods.
+
+## TypeScript file map
 
 ```
 backend/src/
@@ -50,9 +61,24 @@ backend/src/
     └── policy.ts          pickAction(aliveShips, enemyView, rng)
 ```
 
+## Rust file map
+
+```
+backend-rs/src/
+|-- main.rs                 entrypoint - parses PORT, starts Axum
+|-- app.rs                  create_app(): router, CORS, health route
+|-- config.rs               BOARD_SIZE, fleet roster, default AI seed
+|-- shared/mod.rs           Serde mirror of shared/src TypeScript DTOs
+|-- api/                    routes, controller functions, validation, errors
+|-- services/               game service and in-memory store
+|-- core/                   game, board, DTO projection, RNG, actions
+|-- models/                 ship model and fleet factory
+`-- ai/                     opponent, placement, targeting, policy
+```
+
 ## Core classes
 
-### `Ship` (abstract, `models/Ship.ts`)
+### `Ship` (`backend/src/models/Ship.ts`, `backend-rs/src/models/ship.rs`)
 
 ```ts
 abstract class Ship {
@@ -88,11 +114,11 @@ abstract class Ship {
 }
 ```
 
-Subclasses set `length`, `name`, override `defaultQuotas()` and
-`supportedActions()`. The `Submarine` additionally overrides `consumeQuota` to
-implement the shared-1-action budget: any single use zeroes all three quotas.
+TypeScript subclasses and Rust ship-kind logic set `length`, `name`, default
+quotas, and supported actions. The Submarine additionally implements the
+shared-1-action budget: any single use zeroes all three quotas.
 
-### `Board` (`core/Board.ts`)
+### `Board` (`backend/src/core/Board.ts`, `backend-rs/src/core/board.rs`)
 
 ```ts
 class Board {
@@ -135,7 +161,7 @@ newly-fully-damaged ship promotes the ship's cells to `SUNK` and emits a
 > - The **enemy's** view is derived on demand by `toEnemyView()`, which collapses
 >   any unattacked `SHIP` cells back into `UNKNOWN`.
 
-### `Game` (`core/Game.ts`)
+### `Game` (`backend/src/core/Game.ts`, `backend-rs/src/core/game.rs`)
 
 ```ts
 class Game {
@@ -191,7 +217,7 @@ Turn flow:
 
 This split is what gives the frontend its per-action animation cadence.
 
-### Action handlers (`core/actions/`)
+### Action handlers (`backend/src/core/actions/`, `backend-rs/src/core/actions/`)
 
 ```ts
 export interface ActionContext {
@@ -209,24 +235,27 @@ export interface Action {
 }
 ```
 
-This is a textbook Strategy pattern. To add a new ability (e.g. torpedo line):
-1. Create `core/actions/Torpedo.ts` implementing `Action`.
-2. Register it in `core/actions/registry.ts`.
-3. Add the `ActionKind` to `shared/ships.ts`.
-4. Give the relevant Ship subclass a quota in `defaultQuotas()` and add the
-   kind to `supportedActions()`.
+This is a Strategy pattern. The Rust implementation expresses the same
+validation/execution boundary with action functions and a registry. To add a
+new ability (e.g. torpedo line):
 
-No other module changes.
+1. Add the `ActionKind` to `shared/ships.ts` and its Rust mirror in
+   `backend-rs/src/shared/mod.rs`.
+2. Implement and register the action in both action directories.
+3. Grant the action and quota to the relevant ship logic in both backends.
 
-### `Rng` (`core/rng.ts`)
+No other backend layer should need to change.
+
+### `Rng` (`backend/src/core/rng.ts`, `backend-rs/src/core/rng.rs`)
 
 `mulberry32`-based PRNG with `nextFloat()`, `nextInt(maxExcl)`,
-`pick<T>(arr: T[])`, `shuffle<T>(arr: T[]): T[]`. Constructor takes a 32-bit
-seed; `Rng.random()` factory uses `Math.random` based entropy.
+`pick`, and `shuffle` operations. It takes a 32-bit seed. The Rust
+implementation reproduces the TypeScript generator bit-for-bit so seeded
+games remain observably equivalent.
 
 ## Services
 
-### `GameStore`
+### `GameStore` (`backend/src/services/GameStore.ts`, `backend-rs/src/services/store.rs`)
 
 ```ts
 class GameStore {
@@ -237,7 +266,7 @@ class GameStore {
 }
 ```
 
-### `GameService`
+### `GameService` (`backend/src/services/GameService.ts`, `backend-rs/src/services/game_service.rs`)
 
 Application orchestrator. The controller layer only ever calls `GameService`.
 
@@ -262,7 +291,7 @@ class GameService {
 
 ## API layer
 
-`gameRoutes.ts` mounts:
+`backend/src/api/gameRoutes.ts` and `backend-rs/src/api/routes.rs` mount:
 
 ```
 POST   /api/games
@@ -272,14 +301,18 @@ POST   /api/games/:id/place
 POST   /api/games/:id/place-random
 POST   /api/games/:id/reset-placement
 POST   /api/games/:id/actions
+POST   /api/games/:id/ai-step
 GET    /api/meta/fleet
 ```
 
-`gameController.ts` performs request validation via `validators.ts`, calls the
-service, and returns `{ state }` or `{ state, events }`. All thrown
-`ApiError`s are mapped to JSON via `errors.ts:errorHandler`.
+The TypeScript controller class and Rust controller functions perform request
+validation, call their service, and return `{ state }`, `{ state, events }`, or
+the AI-step envelope. Both error layers map failures to the same JSON envelope,
+status code, code, and message.
 
 ## Class diagram (textual)
+
+This diagram is conceptual and applies to both implementations.
 
 ```
                      +-----------+
